@@ -1,0 +1,116 @@
+---
+title: "Major League TagPro Player Analysis"
+author: "Max Gipson"
+date: "May 18, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Background
+
+TagPro is an online, flash-based browser game in which two teams of four "balls" compete in Capture-the-Flag. The objective of the game is to keep one's own flag in base while attempting to grab and capture the other team's flag. Public games, in which anyone can queue up instantly and begin playing, are won when one team captures the other's flag three times. After twelve minutes, the team with the lead wins the game, or the game ends in a draw. More information about the game can be found at the official wiki: www.reddit.com/r/Tagpro/wiki, and the game can be played at www.tagpro.gg.
+
+The game officially went online in February of 2013 and has had a steadily-growing playerbase ever since. Although playing in public matches was fun for all, the community craved additional competition. In June of 2013, private games were implemented so that players could challenge and play their friends, but public statistics (e.g. overall wins, total captures) would not be affected. Soon after, the first season of Major League TagPro (MLTP) took place with 16 players split into four teams. Now in its 15th season, MLTP is the highest-caliber league TagPro has to offer, while less-than-stellar players can compete in Minor League TagPro (mLTP) and Novice League TagPro (NLTP). Due to efforts of the community, statistics for every league game (and public game) are recorded in some way or another, with the most popular go-to websites for statistics being www.tagpro.eu, www.tagproleague.com, and www.reddit.com/r/MLTP.
+
+In this analysis, we'll be looking at comparing the top MLTP players from seasons 10 to 14. The MLTP player population was much different five seasons ago, so using the most recent five, hopefully the analysis we perform will be more relevant to the current state of the league. The datasets we're using were obtained at https://www.tagproleague.com/MLTP/stats by exporting the cumulative Week Stats for seasons 10 through 14.
+
+```{r}
+library(tidyverse)
+library(stringr)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+
+s10 <- read_csv("final_files\\mltp_season10.csv") %>%
+  mutate(season=10)
+s11 <- read_csv("final_files\\mltp_season11.csv") %>%
+  mutate(season=11)
+s12 <- read_csv("final_files\\mltp_season12.csv") %>%
+  mutate(season=12)
+s13 <- read_csv("final_files\\mltp_season13.csv") %>%
+  mutate(season=13)
+s14 <- read_csv("final_files\\mltp_season14.csv") %>%
+  mutate(season=14)
+
+# let's get all our entries in one data frame, preserving each individual entry
+tagpro <- s10 %>%
+  full_join(s11) %>%
+  full_join(s12) %>%
+  full_join(s13) %>%
+  full_join(s14) %>%
+  # we can remove team because we will not be analyzing team performances, just players
+  select(-team, -X28)
+
+# some top players changed their name between seasons
+tagpro$player[tagpro$player %in% "ProTagonist_"] <- "protag"
+
+tagpro
+```
+
+The datasets we obtained and combined show statistics recorded by individual players per season. These categories are defined at www.reddit.com/r/Tagpro/wiki/gameplay and www.reddit.com/r/Tagpro/wiki/glossary. TagPro is played using a 2O/2D strategy in which two offensive and two defensive players make up a team. Some stats reflect when a player is better at or plays more of one position:
+
+A high-quality offensive player has:
+* *High* - pm, tags, captures-per-grab, hold, captures, pups
+* *Low* - pops, drops, flaccids
+
+A high-quality defensive player has:
+* *High* - pm, tags, prevent, returns, pups
+* *Low* - pops, holdagainst
+
+The other attributes are also indicative of skill, but those are the best at classifying performance from a statistical perspective.
+
+Let's looks at the best offensive players of the past five seasons. First, we'll have to deduce which players are offensively-minded, as that isn't part of the dataset because players can change positions quite frequently. To do this, we can view the relationship between captures and time played.
+```{r}
+grouped_by_player <- tagpro %>% 
+  group_by(player) %>%
+  summarize_if(is.numeric, sum)
+
+grouped_by_player %>%
+  ggplot(aes(x=minutes, y=captures, label=player)) +
+    geom_point() +
+    labs(title="Captures vs Time Played",
+         x = "minutes",
+         y = "captures") +
+    geom_smooth(method=lm)
+```
+
+As one could expect, there is a positive correlation between time spent in-game and captures. Naturally, the more time a player has to score, the greater change they have of doing so. The linear regression line plotted represents the expected captures a player would have given an amount of time spent in-game. For the purposes of this analysis, it is reasonable to assume that players who fall under this line are more defensive, while players over are more offensive. Let's find out which offenders are the most efficient scorers.
+
+```{r}
+captures.lm = lm(captures ~ minutes, data=grouped_by_player)
+coeffs <- coefficients(captures.lm)
+
+offensive_players <- grouped_by_player %>%
+  filter((coeffs[1] + coeffs[2] * minutes < captures))
+
+top15_off <- offensive_players %>%
+  arrange(desc(captures)) %>%
+  head(n=15)
+
+top15_off %>%
+  ggplot(aes(x=minutes, y=captures, label=player)) +
+    geom_point() +
+    labs(title="Captures vs Time Played",
+         x = "minutes",
+         y = "captures") +
+    geom_smooth(method=lm) +
+    geom_text(size = 3, hjust=0, nudge_x=0.1, nudge_y = 0.1)
+```
+
+In the above plot, we first filtered out the subset of players that were below the original regression line. Of the players with the most captures in our new set (which we can assume to be offensive players), we plotted the capturing efficiencies of the top 15. Again we used a linear regression to provide a baseline for our performances. All of these players are above-average attackers in regard to the rest of the league, but among their subset, it is clear who stands out as making the most of their playing time. LEBRON*JAMES, Ball God, and protag in particular are clearly ahead of the rest of the pack. Rather than eyeball it, we can look at captures per minute to gauge efficiency.
+
+```{r}
+top15_off %>%
+  mutate(caps_per_min=as.double(captures / minutes)) %>%
+  ggplot(aes(x=player, y=caps_per_min)) +
+    geom_bar(aes(fill=player), position="dodge", stat="identity") +
+    labs(title="S10 to S14 MLTP Player Captures Per Minute",
+         x = "player",
+         y = "captures per minute") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+Here we can see that not only are LEBRON*JAMES, Ball God, and protag offensive players with high captures-per-minute, but so are WarriOrs and toasty.
