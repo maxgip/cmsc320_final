@@ -9,11 +9,25 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Background
+## Background
 
 TagPro is an online, flash-based browser game in which two teams of four "balls" compete in Capture-the-Flag. The objective of the game is to keep one's own flag in base while attempting to grab and capture the other team's flag. Public games, in which anyone can queue up instantly and begin playing, are won when one team captures the other's flag three times. After twelve minutes, the team with the lead wins the game, or the game ends in a draw. More information about the game can be found at the official wiki: www.reddit.com/r/Tagpro/wiki, and the game can be played at www.tagpro.gg.
 
 The game officially went online in February of 2013 and has had a steadily-growing playerbase ever since. Although playing in public matches was fun for all, the community craved additional competition. In June of 2013, private games were implemented so that players could challenge and play their friends, but public statistics (e.g. overall wins, total captures) would not be affected. Soon after, the first season of Major League TagPro (MLTP) took place with 16 players split into four teams. Now in its 15th season, MLTP is the highest-caliber league TagPro has to offer, while less-than-stellar players can compete in Minor League TagPro (mLTP) and Novice League TagPro (NLTP). Due to efforts of the community, statistics for every league game (and public game) are recorded in some way or another, with the most popular go-to websites for statistics being www.tagpro.eu, www.tagproleague.com, and www.reddit.com/r/MLTP.
+
+## Dependencies
+
+Apart from the R language (available for free installation here: https://cran.r-project.org/index.html), there are several packages that will aid us in our analysis, notably:
+
+- tidyverse (www.tidyverse.org)
+- stringr (https://cran.r-project.org/package=stringr)
+- tidyr (https://www.rdocumentation.org/packages/tidyr/versions/0.8.0)
+- dplyr (https://dplyr.tidyverse.org/)
+- ggplot2 (https://ggplot2.tidyverse.org/reference/)
+
+To set up one's own R environment, install RStudio, a free R IDE, at https://www.rstudio.com/products/rstudio/download/. From there, installing packages is as easy as navigating to the native console and typing `install.packages("package-name")`. Then we can get to data analysis!
+
+## Data Acquisition and Tidying
 
 In this analysis, we'll be looking at comparing the top MLTP players from seasons 10 to 14. The MLTP player population was much different five seasons ago, so using the most recent five, hopefully the analysis we perform will be more relevant to the current state of the league. The datasets we're using were obtained at https://www.tagproleague.com/MLTP/stats by exporting the cumulative Week Stats for seasons 10 through 14.
 
@@ -46,24 +60,37 @@ tagpro <- suppressMessages(s10 %>%
 
 # some top players changed their name between seasons
 tagpro$player[tagpro$player %in% "ProTagonist_"] <- "protag"
+tagpro$player[tagpro$player %in% c("Crippy", "crippy")] <- "badger"
 
 tagpro
 ```
 
-The datasets we obtained and combined show statistics recorded by individual players per season. These categories are defined at www.reddit.com/r/Tagpro/wiki/gameplay and www.reddit.com/r/Tagpro/wiki/glossary. TagPro is played using a 2O/2D strategy in which two offensive and two defensive players make up a team. Some stats reflect when a player is better at or plays more of one position:
+
+## Exploratory Data Analysis
+
+The datasets we obtained and combined show statistics recorded by individual players per season. These categories are defined at www.reddit.com/r/Tagpro/wiki/gameplay and www.reddit.com/r/Tagpro/wiki/glossary. TagPro is played using a 2O/2D strategy in which two offensive and two defensive players make up a team. Some stats reflect when a player is better at, or plays more of, one position:
 
 A high-quality offensive player has:
-* *High* - pm, tags, captures-per-grab, hold, captures, pups
-* *Low* - pops, drops, flaccids
+- **High** - pm, tags, captures-per-grab, hold, captures, pups
+- **Low** - pops, drops, flaccids
 
 A high-quality defensive player has:
-* *High* - pm, tags, prevent, returns, pups
-* *Low* - pops, holdagainst
+* **High** - pm, tags, prevent, returns, pups
+* **Low** - pops, holdagainst
 
 The other attributes are also indicative of skill, but those are the best at classifying performance from a statistical perspective.
 
-Let's looks at the best offensive players of the past five seasons. First, we'll have to deduce which players are offensively-minded, as that isn't part of the dataset because players can change positions quite frequently. To do this, we can view the relationship between captures and time played.
+Let's looks at the best offensive players of the past five seasons. First, we'll have to deduce which players are offensively-minded, as that isn't part of the dataset because players can change positions quite frequently. To do this, we can view the relationship between captures and time played. Using the `group_by` function, we can total players' individual seasonal statistics by their in-game name. R has excellent documentation, and the `group_by` page can be found here:
+
+https://www.rdocumentation.org/packages/dplyr/versions/0.7.3/topics/group_by
+
+Then, using R's `ggplot2` package, we can visualize the data. `ggplot2` provides access to a lot of useful functionalities for displaying data graphically in R. See the tidyverse documentation for more information:
+
+http://ggplot2.tidyverse.org/reference/
+
+
 ```{r}
+# aggregate individual players' stats over entire dataset
 grouped_by_player <- tagpro %>% 
   group_by(player) %>%
   summarize_if(is.numeric, sum)
@@ -74,22 +101,27 @@ grouped_by_player %>%
     labs(title="Captures vs Time Played",
          x = "minutes",
          y = "captures") +
+    # we can incorporate a linear regresion model to visualize expected captures 
     geom_smooth(method=lm)
 ```
 
 As one could expect, there is a positive correlation between time spent in-game and captures. Naturally, the more time a player has to score, the greater change they have of doing so. The linear regression line plotted represents the expected captures a player would have given an amount of time spent in-game. For the purposes of this analysis, it is reasonable to assume that players who fall under this line are more defensive, while players over are more offensive. Let's find out which offenders are the most efficient scorers.
 
 ```{r}
+# calculate our linear regression coefficients (e.g. y = ax + b)
 captures.lm = lm(captures ~ minutes, data=grouped_by_player)
 coeffs <- coefficients(captures.lm)
 
+# take players above the linear regression line
 offensive_players <- grouped_by_player %>%
   filter((coeffs[1] + coeffs[2] * minutes < captures))
 
+# get the top 15 players by total captures
 top15_off <- offensive_players %>%
   arrange(desc(captures)) %>%
   head(n=15)
 
+# plot our subset
 top15_off %>%
   ggplot(aes(x=minutes, y=captures, label=player)) +
     geom_point() +
@@ -104,13 +136,212 @@ In the above plot, we first filtered out the subset of players that were below t
 
 ```{r}
 top15_off %>%
+  # add a captures-per-minute attribute to the top-15 subset
   mutate(caps_per_min=as.double(captures / minutes)) %>%
   ggplot(aes(x=player, y=caps_per_min)) +
     geom_bar(aes(fill=player), position="dodge", stat="identity") +
     labs(title="S10 to S14 MLTP Player Captures Per Minute",
          x = "player",
          y = "captures per minute") +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  theme(axis.text.x = element_text(angle=90, hjust=1))
 ```
 
-Here we can see that not only are LEBRON*JAMES, Ball God, and protag offensive players with high captures-per-minute, but so are WarriOrs and toasty.
+Here we can see that not only are LEBRON*JAMES, Ball God, and protag offensive players with high captures-per-minute, but so are WarriOrs and toasty. It is important to note that this metric does not depend solely upon the individual player, but also their team. An offender with a poor defense would not be able to capture as often as one with a very good defense that is able to keep their own flag in base so that captures are possible. Let's look at top defensive players next. We can use the players that were under the linear regression line from earlier, and visualize their returns per minute played, which is indicative of a strong defender that can keep their own flag in base.
+
+```{r}
+# take players above the linear regression line
+defensive_players <- grouped_by_player %>%
+  filter((coeffs[1] + coeffs[2] * minutes > captures))
+
+# get the top 15 players by total captures
+top15_def <- defensive_players %>%
+  mutate(returns_per_min=as.double(returns / minutes)) %>%
+  arrange(desc(returns_per_min)) %>%
+  head(n=15)
+
+# plot our subset
+top15_def %>%
+  ggplot(aes(x=player, y=returns_per_min, label=player)) +
+    geom_bar(aes(fill=player), position="dodge", stat="identity") +
+    labs(title="Player Returns per Minute",
+         x = "player",
+         y = "returns per minute") +
+    theme(axis.text.x = element_text(angle=90, hjust=1))
+```
+
+From this data visualization, it is clear that GriefSeeds, G1nseng, Squeeb, phreak, and Abe Lincoln contribute the most returns per minute to their respective teams, compared to other defensive players of similer caliber. This is a totally different group of players because they play a different role than offenders -- they aim for returns, not captures.
+
+So far, we've only considered captures and returns as defining statistical measurement of offensive and defensive performance, respectively. Let's come up with a metric to incorporate other attributes to get a real sense for the best offensive and defensive players. Let's first add some more attributes to our overall dataset. We'll add:
+
+- captures per minute (as we did with offensive players)
+- returns per minute (as we did with defensive players)
+- kill death ratio - number of tags divided by number of pops
+- non return tags - occur when a player pops a player that is not holding their flag
+- non return tags per minute
+
+These will allow us to form a more complete view of how offensive and defensive players perform.
+
+```{r}
+tagpro <- tagpro %>%
+  mutate(cpm=as.double(captures / minutes)) %>%
+  mutate(rpm=as.double(returns / minutes)) %>%
+  mutate(kdr=as.double(tags / pops)) %>%
+  mutate(nrt=as.double(tags - returns)) %>%
+  mutate(nrtpm=as.double(nrt / minutes))
+  
+tagpro %>%
+  select(player, cpm, rpm, kdr, nrt, nrtpm) %>%
+  head(10)
+```
+
+To evaluate these metrics, we'll compare each players' individual statistics to the overall mean, and standardize the resulting data to create a ranking for offensive and defensive players. We'll do so using R's `scale` and `rank` functions. Learn about them at https://www.rdocumentation.org/packages/base/versions/3.5.0/topics/scale and https://www.rdocumentation.org/packages/base/versions/3.5.0/topics/rank.
+
+The metric we'll use will combine and weight the offensive stats of captures-per-minute, captures, and hold, based on their contributions to an effective offensive performance.
+
+```{r}
+tagpro_off <- tagpro %>%
+  mutate(off_eff=scale(cpm) * 2 + scale(captures) * 5 + scale(hold) * 4)
+
+tagpro_off <- tagpro_off %>%
+  mutate(off_rank=rank(off_eff))
+
+tagpro_off %>%
+  filter(off_eff != 0) %>%
+  select(player, off_rank, off_eff, season) %>%
+  arrange(desc(off_rank)) %>%
+  head(100)
+```
+
+We've derived a metric for offensive ranking of players per season, but let's see who is consistently good at offense by applying the metric across all seasons.
+
+```{r}
+off_grouped <- tagpro_off %>%
+  group_by(player) %>%
+  summarise(season=sum(season), off_rank=mean(off_rank)) %>%
+  filter(season > 15) %>%
+  # summarize_if(is.numeric, sum) %>%
+  arrange(desc(off_rank))
+
+top_off_rank <- off_grouped$off_rank[1]
+
+off_grouped %>%
+  mutate(off_rank_pct=off_rank / top_off_rank * 100) %>%
+  arrange(desc(off_rank_pct)) %>%
+  select(player, off_rank_pct) %>%
+  head(20)
+```
+
+Now, across the last five seasons, we have a good idea for who the best offenders are, based not only on their captures, but their hold, and other criteria. Bear in mind that the rankings we derived take into account seasons played, so players with longer careers are ranked higher than those who may have stopped playing. A bonus of this ranking is that the disparity in offensive skill is clear. An analyst can see, quantitatively, how much better one player is than another, as opposed to just ranking them 1 through 20. 
+
+We can perform the same analysis for defenders. This time we'll weigh returns-per-minute, kill-death-ratio, non-return-tags-per-minute, and returns accordingly into our metric. This will create an effective way of incorporating defensive stats into an overall defensive ranking.
+
+```{r}
+tagpro_def <- tagpro %>%
+  mutate(def_eff=scale(rpm) * 2 + scale(kdr) * 1 + scale(nrtpm) * 2 + scale(returns) * 4 + scale(prevent) * 4)
+
+tagpro_def <- tagpro_def %>%
+  mutate(def_rank=rank(def_eff))
+
+tagpro_def %>%
+  filter(def_eff != 0) %>%
+  select(player, def_rank, def_eff, season) %>%
+  arrange(desc(def_rank)) %>%
+  head(100)
+```
+
+
+```{r}
+def_grouped <- tagpro_def %>%
+  group_by(player) %>%
+  summarise(season=sum(season), def_rank=mean(def_rank)) %>%
+  filter(season > 15) %>%
+  arrange(desc(def_rank))
+
+top_def_rank <- def_grouped$def_rank[1]
+
+def_grouped %>%
+  mutate(def_rank_pct=def_rank / top_def_rank * 100) %>%
+  arrange(desc(def_rank_pct)) %>%
+  select(player, def_rank_pct) %>%
+  head(20)
+```
+
+There is a much larger disparity here between the skill levels of defenders when compared to the top offenders. We can average the offensive and defensive ratings to get an idea of how players are ranked overall in relation to one another.
+
+```{r}
+tagpro_overall <- off_grouped %>%
+  inner_join(def_grouped, by=c("player")) %>%
+  mutate(overall_rank=as.double((off_rank + def_rank) / 2)) %>%
+  arrange(desc(overall_rank))
+
+top_overall_rank <- tagpro_overall$overall_rank[1]
+
+tagpro_overall <- tagpro_overall %>%
+  mutate(overall_rank=as.double(overall_rank / top_overall_rank * 100))
+
+tagpro_overall %>%
+  select(player, overall_rank) %>%
+  arrange(desc(overall_rank)) %>%
+  head(20)
+```
+
+We can visualize how the number of seasons a player participates in affects their overall ranking. We'll do so with a scatter plot, after calculating how many seasons each player played in.
+```{r}
+tagpro_overall <- tagpro_overall %>%
+  mutate(seasons=ifelse(season.x > 50, 5,
+                 ifelse(season.x > 39, 4,
+                 ifelse(season.x > 27, 3,
+                 ifelse(season.x > 14, 2, 1)))))
+
+tagpro_overall %>%
+  ggplot(aes(x=seasons, y=overall_rank, label=player)) +
+    geom_point() +
+    labs(title="Overall Ranking vs Seasons Played",
+         x = "seasons",
+         y = "overall (off + def) rank") +
+    # we can incorporate a linear regresion model to visualize expected captures
+    geom_smooth(method=lm)
+```
+
+Clearly there is a positive relationship between thnumber of seasons played and how well a player can contribute to their team. This makes sense because as players compete against other high-caliber players, they will improve. We can also use a violin plot to visualize the skill discrepancy across the league based on how many seasons players have played in.
+
+```{r}
+tagpro_overall %>%
+  ggplot(aes(x=factor(seasons), y=overall_rank, label=player)) +
+    geom_violin() +
+    labs(title="Overall Ranking vs Seasons Played",
+         x = "seasons",
+         y = "overall (off + def) rank") +
+    # we can incorporate a linear regresion model to visualize expected captures
+    geom_smooth(method=lm)
+```
+
+According to this graph, the skill disparity decreases as players participate in more seasons. For players with just two seasons under their belt, the range of overall ratings is much larger, and the rankings are skewed toward poorer players. As number of seasons increases, say to five, the range of overall rankings decreases are less-skilled players get better, and more-skilled players plateau, creating less skew in the data.
+
+We have our analysis comparing players to one another based on offensive and defensive performances across five seasons. Now let's see who's the best!
+
+```{r}
+tagpro_overall %>%
+  arrange(desc(overall_rank)) %>%
+  head(20) %>%
+  ggplot(aes(x=player, y=overall_rank, label=player)) +
+    geom_bar(aes(fill=player), position="dodge", stat="identity") +
+    labs(title="Player Overall Rankings",
+         x = "player",
+         y = "overall ranking") +
+    theme(axis.text.x = element_text(angle=90, hjust=1))
+```
+
+Here we have the top 20 players based on the overall ranking metric we used. Any of these players would contribute greatly to a team on both the offensive and defensive ends. Based on the data (and general community opinion), intercest appears to be the greatest player to play the game over the last five seasons.
+
+## Hypothesis Testing and Machine Learning
+
+Given the data we just curated, we could split our dataset into training and testing portions, and use machine learning algorithms to derive predictions for particular outcomes. For example, with Season 15 of MLTP already in progress, we could make a hypothesis that intercest would have the highest overall ranking compared to the other players playing this season. From there, we would be able to find the probability that our hypothesis would come true. A variety of methods can be used to do this, for example decision trees and random forests. Learn about the R `randomForest` package here: https://cran.r-project.org/web/packages/randomForest/randomForest.pdf
+
+## Conclusion
+
+By conducting this analysis, we have gained the ability to see who the greatest Major League TagPro players of the past five seasons have been. We derived metrics for quantifying offensive and defensive performances, and showed that as players continue to participate in the league, they will improve. However, that conclusion could be interfered with, as better players will have a tendency to continue playing inthe league, thus affecting the data. 
+
+Further analysis could be conducted on this data (with the help of other relevant datasets) to determine how individual players affect how well their teams perform during the regulation season and during playoffs. Further, this analysis could lead to being able to make predictions, with varying degrees of confidence, on which team would win the Superball (much like the Superbowl) for a current season.
+
+In the TagPro community, this analysis would help team captains scout the best players (or players with the most potential) to give their teams a better chance at becoming victorious.
