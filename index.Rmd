@@ -18,29 +18,29 @@ The game officially went online in February of 2013 and has had a steadily-growi
 In this analysis, we'll be looking at comparing the top MLTP players from seasons 10 to 14. The MLTP player population was much different five seasons ago, so using the most recent five, hopefully the analysis we perform will be more relevant to the current state of the league. The datasets we're using were obtained at https://www.tagproleague.com/MLTP/stats by exporting the cumulative Week Stats for seasons 10 through 14.
 
 ```{r}
-library(tidyverse)
+suppressMessages(library(tidyverse))
 library(stringr)
 library(tidyr)
 library(dplyr)
 library(ggplot2)
 
-s10 <- read_csv("final_files\\mltp_season10.csv") %>%
+s10 <- suppressWarnings(suppressMessages(read_csv("final_files\\mltp_season10.csv"))) %>%
   mutate(season=10)
-s11 <- read_csv("final_files\\mltp_season11.csv") %>%
+s11 <- suppressWarnings(suppressMessages(read_csv("final_files\\mltp_season11.csv"))) %>%
   mutate(season=11)
-s12 <- read_csv("final_files\\mltp_season12.csv") %>%
+s12 <- suppressWarnings(suppressMessages(read_csv("final_files\\mltp_season12.csv"))) %>%
   mutate(season=12)
-s13 <- read_csv("final_files\\mltp_season13.csv") %>%
+s13 <- suppressWarnings(suppressMessages(read_csv("final_files\\mltp_season13.csv"))) %>%
   mutate(season=13)
-s14 <- read_csv("final_files\\mltp_season14.csv") %>%
+s14 <- suppressWarnings(suppressMessages(read_csv("final_files\\mltp_season14.csv"))) %>%
   mutate(season=14)
 
 # let's get all our entries in one data frame, preserving each individual entry
-tagpro <- s10 %>%
+tagpro <- suppressMessages(s10 %>%
   full_join(s11) %>%
   full_join(s12) %>%
   full_join(s13) %>%
-  full_join(s14) %>%
+  full_join(s14)) %>%
   # we can remove team because we will not be analyzing team performances, just players
   select(-team, -X28)
 

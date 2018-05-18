@@ -131,88 +131,33 @@ $(document).ready(function () {
 <p>TagPro is an online, flash-based browser game in which two teams of four “balls” compete in Capture-the-Flag. The objective of the game is to keep one’s own flag in base while attempting to grab and capture the other team’s flag. Public games, in which anyone can queue up instantly and begin playing, are won when one team captures the other’s flag three times. After twelve minutes, the team with the lead wins the game, or the game ends in a draw. More information about the game can be found at the official wiki: www.reddit.com/r/Tagpro/wiki, and the game can be played at www.tagpro.gg.</p>
 <p>The game officially went online in February of 2013 and has had a steadily-growing playerbase ever since. Although playing in public matches was fun for all, the community craved additional competition. In June of 2013, private games were implemented so that players could challenge and play their friends, but public statistics (e.g. overall wins, total captures) would not be affected. Soon after, the first season of Major League TagPro (MLTP) took place with 16 players split into four teams. Now in its 15th season, MLTP is the highest-caliber league TagPro has to offer, while less-than-stellar players can compete in Minor League TagPro (mLTP) and Novice League TagPro (NLTP). Due to efforts of the community, statistics for every league game (and public game) are recorded in some way or another, with the most popular go-to websites for statistics being www.tagpro.eu, www.tagproleague.com, and www.reddit.com/r/MLTP.</p>
 <p>In this analysis, we’ll be looking at comparing the top MLTP players from seasons 10 to 14. The MLTP player population was much different five seasons ago, so using the most recent five, hopefully the analysis we perform will be more relevant to the current state of the league. The datasets we’re using were obtained at <a href="https://www.tagproleague.com/MLTP/stats" class="uri">https://www.tagproleague.com/MLTP/stats</a> by exporting the cumulative Week Stats for seasons 10 through 14.</p>
-<pre class="r"><code>library(tidyverse)</code></pre>
-<pre><code>## -- Attaching packages ------------------------------------------------------------------ tidyverse 1.2.1 --</code></pre>
-<pre><code>## v ggplot2 2.2.1     v purrr   0.2.4
-## v tibble  1.4.2     v dplyr   0.7.4
-## v tidyr   0.7.2     v stringr 1.2.0
-## v readr   1.1.1     v forcats 0.2.0</code></pre>
-<pre><code>## -- Conflicts --------------------------------------------------------------------- tidyverse_conflicts() --
-## x dplyr::filter() masks stats::filter()
-## x dplyr::lag()    masks stats::lag()</code></pre>
-<pre class="r"><code>library(stringr)
+<pre class="r"><code>suppressMessages(library(tidyverse))
+library(stringr)
 library(tidyr)
 library(dplyr)
 library(ggplot2)
 
-s10 &lt;- read_csv(&quot;final_files\\mltp_season10.csv&quot;) %&gt;%
-  mutate(season=10)</code></pre>
-<pre><code>## Warning: Missing column names filled in: 'X28' [28]</code></pre>
-<pre><code>## Parsed with column specification:
-## cols(
-##   .default = col_integer(),
-##   player = col_character(),
-##   team = col_character(),
-##   X28 = col_character()
-## )</code></pre>
-<pre><code>## See spec(...) for full column specifications.</code></pre>
-<pre class="r"><code>s11 &lt;- read_csv(&quot;final_files\\mltp_season11.csv&quot;) %&gt;%
-  mutate(season=11)</code></pre>
-<pre><code>## Warning: Missing column names filled in: 'X28' [28]</code></pre>
-<pre><code>## Parsed with column specification:
-## cols(
-##   .default = col_integer(),
-##   player = col_character(),
-##   team = col_character(),
-##   X28 = col_character()
-## )
-## See spec(...) for full column specifications.</code></pre>
-<pre class="r"><code>s12 &lt;- read_csv(&quot;final_files\\mltp_season12.csv&quot;) %&gt;%
-  mutate(season=12)</code></pre>
-<pre><code>## Warning: Missing column names filled in: 'X28' [28]</code></pre>
-<pre><code>## Parsed with column specification:
-## cols(
-##   .default = col_integer(),
-##   player = col_character(),
-##   team = col_character(),
-##   X28 = col_character()
-## )
-## See spec(...) for full column specifications.</code></pre>
-<pre class="r"><code>s13 &lt;- read_csv(&quot;final_files\\mltp_season13.csv&quot;) %&gt;%
-  mutate(season=13)</code></pre>
-<pre><code>## Warning: Missing column names filled in: 'X28' [28]</code></pre>
-<pre><code>## Parsed with column specification:
-## cols(
-##   .default = col_integer(),
-##   player = col_character(),
-##   team = col_character(),
-##   X28 = col_character()
-## )
-## See spec(...) for full column specifications.</code></pre>
-<pre class="r"><code>s14 &lt;- read_csv(&quot;final_files\\mltp_season14.csv&quot;) %&gt;%
-  mutate(season=14)</code></pre>
-<pre><code>## Warning: Missing column names filled in: 'X28' [28]</code></pre>
-<pre><code>## Parsed with column specification:
-## cols(
-##   .default = col_integer(),
-##   player = col_character(),
-##   team = col_character(),
-##   X28 = col_character()
-## )
-## See spec(...) for full column specifications.</code></pre>
-<pre class="r"><code># let's get all our entries in one data frame, preserving each individual entry
-tagpro &lt;- s10 %&gt;%
+s10 &lt;- suppressWarnings(suppressMessages(read_csv(&quot;final_files\\mltp_season10.csv&quot;))) %&gt;%
+  mutate(season=10)
+s11 &lt;- suppressWarnings(suppressMessages(read_csv(&quot;final_files\\mltp_season11.csv&quot;))) %&gt;%
+  mutate(season=11)
+s12 &lt;- suppressWarnings(suppressMessages(read_csv(&quot;final_files\\mltp_season12.csv&quot;))) %&gt;%
+  mutate(season=12)
+s13 &lt;- suppressWarnings(suppressMessages(read_csv(&quot;final_files\\mltp_season13.csv&quot;))) %&gt;%
+  mutate(season=13)
+s14 &lt;- suppressWarnings(suppressMessages(read_csv(&quot;final_files\\mltp_season14.csv&quot;))) %&gt;%
+  mutate(season=14)
+
+# let's get all our entries in one data frame, preserving each individual entry
+tagpro &lt;- suppressMessages(s10 %&gt;%
   full_join(s11) %&gt;%
   full_join(s12) %&gt;%
   full_join(s13) %&gt;%
-  full_join(s14) %&gt;%
+  full_join(s14)) %&gt;%
   # we can remove team because we will not be analyzing team performances, just players
-  select(-team, -X28)</code></pre>
-<pre><code>## Joining, by = c(&quot;player&quot;, &quot;team&quot;, &quot;score&quot;, &quot;minutes&quot;, &quot;pm&quot;, &quot;tags&quot;, &quot;pops&quot;, &quot;grabs&quot;, &quot;drops&quot;, &quot;hold&quot;, &quot;captures&quot;, &quot;prevent&quot;, &quot;returns&quot;, &quot;pups&quot;, &quot;pupscomp&quot;, &quot;flaccids&quot;, &quot;longholds&quot;, &quot;handoff&quot;, &quot;goodhandoff&quot;, &quot;goregrab&quot;, &quot;coregrab&quot;, &quot;gohandoff&quot;, &quot;cohandoff&quot;, &quot;retinbase&quot;, &quot;quickret&quot;, &quot;saves&quot;, &quot;holdagainst&quot;, &quot;X28&quot;, &quot;season&quot;)</code></pre>
-<pre><code>## Joining, by = c(&quot;player&quot;, &quot;team&quot;, &quot;score&quot;, &quot;minutes&quot;, &quot;pm&quot;, &quot;tags&quot;, &quot;pops&quot;, &quot;grabs&quot;, &quot;drops&quot;, &quot;hold&quot;, &quot;captures&quot;, &quot;prevent&quot;, &quot;returns&quot;, &quot;pups&quot;, &quot;pupscomp&quot;, &quot;flaccids&quot;, &quot;longholds&quot;, &quot;handoff&quot;, &quot;goodhandoff&quot;, &quot;goregrab&quot;, &quot;coregrab&quot;, &quot;gohandoff&quot;, &quot;cohandoff&quot;, &quot;retinbase&quot;, &quot;quickret&quot;, &quot;saves&quot;, &quot;holdagainst&quot;, &quot;X28&quot;, &quot;season&quot;)
-## Joining, by = c(&quot;player&quot;, &quot;team&quot;, &quot;score&quot;, &quot;minutes&quot;, &quot;pm&quot;, &quot;tags&quot;, &quot;pops&quot;, &quot;grabs&quot;, &quot;drops&quot;, &quot;hold&quot;, &quot;captures&quot;, &quot;prevent&quot;, &quot;returns&quot;, &quot;pups&quot;, &quot;pupscomp&quot;, &quot;flaccids&quot;, &quot;longholds&quot;, &quot;handoff&quot;, &quot;goodhandoff&quot;, &quot;goregrab&quot;, &quot;coregrab&quot;, &quot;gohandoff&quot;, &quot;cohandoff&quot;, &quot;retinbase&quot;, &quot;quickret&quot;, &quot;saves&quot;, &quot;holdagainst&quot;, &quot;X28&quot;, &quot;season&quot;)
-## Joining, by = c(&quot;player&quot;, &quot;team&quot;, &quot;score&quot;, &quot;minutes&quot;, &quot;pm&quot;, &quot;tags&quot;, &quot;pops&quot;, &quot;grabs&quot;, &quot;drops&quot;, &quot;hold&quot;, &quot;captures&quot;, &quot;prevent&quot;, &quot;returns&quot;, &quot;pups&quot;, &quot;pupscomp&quot;, &quot;flaccids&quot;, &quot;longholds&quot;, &quot;handoff&quot;, &quot;goodhandoff&quot;, &quot;goregrab&quot;, &quot;coregrab&quot;, &quot;gohandoff&quot;, &quot;cohandoff&quot;, &quot;retinbase&quot;, &quot;quickret&quot;, &quot;saves&quot;, &quot;holdagainst&quot;, &quot;X28&quot;, &quot;season&quot;)</code></pre>
-<pre class="r"><code># some top players changed their name between seasons
+  select(-team, -X28)
+
+# some top players changed their name between seasons
 tagpro$player[tagpro$player %in% &quot;ProTagonist_&quot;] &lt;- &quot;protag&quot;
 
 tagpro</code></pre>
